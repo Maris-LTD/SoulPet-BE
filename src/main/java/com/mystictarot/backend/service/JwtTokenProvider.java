@@ -1,8 +1,12 @@
 package com.mystictarot.backend.service;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.SignatureException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +16,7 @@ import java.util.Date;
 import java.util.UUID;
 import java.util.function.Function;
 
+@Slf4j
 @Service
 public class JwtTokenProvider {
 
@@ -20,6 +25,12 @@ public class JwtTokenProvider {
 
     @Value("${jwt.expiration}")
     private Long jwtExpiration;
+
+    @Value("${jwt.issuer:MysticTarotBackend}")
+    private String jwtIssuer;
+
+    @Value("${jwt.audience:MysticTarotFrontend}")
+    private String jwtAudience;
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
@@ -32,6 +43,8 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .setSubject(userId.toString())
                 .claim("email", email)
+                .setIssuer(jwtIssuer)
+                .setAudience(jwtAudience)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(getSigningKey())
@@ -59,6 +72,8 @@ public class JwtTokenProvider {
     private Claims getAllClaimsFromToken(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
+                .requireIssuer(jwtIssuer)
+                .requireAudience(jwtAudience)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -68,7 +83,17 @@ public class JwtTokenProvider {
         try {
             Claims claims = getAllClaimsFromToken(token);
             return !isTokenExpired(claims);
+        } catch (ExpiredJwtException e) {
+            log.warn("JWT token expired: {}", e.getMessage());
+            return false;
+        } catch (MalformedJwtException e) {
+            log.warn("Malformed JWT token: {}", e.getMessage());
+            return false;
+        } catch (SignatureException e) {
+            log.warn("Invalid JWT signature: {}", e.getMessage());
+            return false;
         } catch (Exception e) {
+            log.error("Error validating JWT token: {}", e.getMessage());
             return false;
         }
     }
