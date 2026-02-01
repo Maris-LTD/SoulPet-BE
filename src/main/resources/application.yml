@@ -1,0 +1,79 @@
+spring:
+  application:
+    name: MysticTarotBackend
+
+  datasource:
+    # Local PostgreSQL Connection
+    # Use environment variables for security: DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, DB_PASSWORD
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:}
+    driver-class-name: org.postgresql.Driver
+    # Connection pool settings
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    # Auto-create/update database schema from entities
+    hibernate:
+      ddl-auto: update
+    # Show SQL queries in console (useful for debugging)
+    show-sql: true
+    # Generate DDL from entities
+    generate-ddl: true
+    properties:
+      hibernate:
+        # Format SQL for better readability
+        format_sql: true
+        # PostgreSQL dialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+        # Use standard naming strategy (snake_case)
+        physical_naming_strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    open-in-view: false
+
+  # [Phỏng đoán] Có cần Flyway/Liquibase không? (Đề xuất: Có cho production)
+  # flyway:
+  #   enabled: true
+  #   locations: classpath:db/migration
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+
+logging:
+  level:
+    root: INFO
+    com.mystictarot.backend: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# JWT Configuration (sẽ được implement sau)
+jwt:
+  secret: ${JWT_SECRET:your-secret-key-change-in-production}
+  expiration: 86400000 # 24 hours in milliseconds
+
+# Gemini AI Configuration (sẽ được implement sau)
+gemini:
+  api-key: ${GEMINI_API_KEY:your-api-key}
+  base-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent
+
+# Payment Gateway Configuration (sẽ được implement sau)
+payment:
+  momo:
+    partner-code: ${MOMO_PARTNER_CODE:}
+    access-key: ${MOMO_ACCESS_KEY:}
+    secret-key: ${MOMO_SECRET_KEY:}
+  zalopay:
+    app-id: ${ZALOPAY_APP_ID:}
+    key1: ${ZALOPAY_KEY1:}
+    key2: ${ZALOPAY_KEY2:}
+  stripe:
+    secret-key: ${STRIPE_SECRET_KEY:}
+    publishable-key: ${STRIPE_PUBLISHABLE_KEY:}

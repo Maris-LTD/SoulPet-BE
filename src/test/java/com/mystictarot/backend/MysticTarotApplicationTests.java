@@ -1,10 +1,10 @@
-package com.example.soulpetbackend;
+package com.mystictarot.backend;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class SoulPetBackEndApplicationTests {
+class MysticTarotApplicationTests {
 
     @Test
     void contextLoads() {
