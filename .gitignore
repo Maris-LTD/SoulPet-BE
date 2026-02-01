@@ -108,3 +108,10 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# Environment variables
+.env
+.vscode
+.idea
+.cursor
+.idea
