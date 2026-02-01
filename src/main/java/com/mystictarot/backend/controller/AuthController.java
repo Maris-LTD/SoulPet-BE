@@ -51,12 +51,8 @@ public class AuthController {
     })
     @PostMapping("/register")
     public ResponseEntity<AuthResponseDTO> register(@Valid @RequestBody RegisterRequestDTO request) {
-        try {
-            AuthResponseDTO response = authService.register(request);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        }
+        AuthResponseDTO response = authService.register(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @Operation(
@@ -82,12 +78,8 @@ public class AuthController {
     })
     @PostMapping("/login")
     public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO request) {
-        try {
-            AuthResponseDTO response = authService.login(request);
-            return ResponseEntity.ok(response);
-        } catch (org.springframework.security.authentication.BadCredentialsException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
+        AuthResponseDTO response = authService.login(request);
+        return ResponseEntity.ok(response);
     }
 
     @Operation(
@@ -108,11 +100,7 @@ public class AuthController {
     })
     @PostMapping("/social")
     public ResponseEntity<AuthResponseDTO> socialLogin(@Valid @RequestBody SocialLoginRequestDTO request) {
-        try {
-            AuthResponseDTO response = authService.socialLogin(request);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        }
+        AuthResponseDTO response = authService.socialLogin(request);
+        return ResponseEntity.ok(response);
     }
 }
