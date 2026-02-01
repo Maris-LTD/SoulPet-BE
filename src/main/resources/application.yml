@@ -47,6 +47,17 @@ server:
   servlet:
     context-path: /api/v1
 
+# SpringDoc OpenAPI (Swagger) Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
+    try-it-out-enabled: true
+
 logging:
   level:
     root: INFO
