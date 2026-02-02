@@ -38,13 +38,16 @@ public interface ReadingRepository extends JpaRepository<Reading, UUID> {
 
     /**
      * Count weekly readings by user ID (from start of current week)
-     * [Phỏng đoán] Weekly reset logic - tính từ đầu tuần (Monday 00:00)
+     * Weekly reset logic - tính từ đầu tuần (Monday 00:00)
      * @param userId user ID
+     * @param status reading status (typically ACTIVE)
      * @param weekStart start of current week
      * @return count of readings
      */
-    @Query("SELECT COUNT(r) FROM Reading r WHERE r.user.id = :userId AND r.status = 'ACTIVE' AND r.createdAt >= :weekStart")
-    long countWeeklyReadingsByUserId(@Param("userId") UUID userId, @Param("weekStart") LocalDateTime weekStart);
+    @Query("SELECT COUNT(r) FROM Reading r WHERE r.user.id = :userId AND r.status = :status AND r.createdAt >= :weekStart")
+    long countWeeklyReadingsByUserId(@Param("userId") UUID userId, 
+                                     @Param("status") ReadingStatus status,
+                                     @Param("weekStart") LocalDateTime weekStart);
 
     /**
      * Find reading by ID and user ID (for security)
@@ -53,4 +56,12 @@ public interface ReadingRepository extends JpaRepository<Reading, UUID> {
      * @return Optional Reading
      */
     Optional<Reading> findByIdAndUserId(UUID id, UUID userId);
+
+    /**
+     * Count readings by user and status
+     * @param userId user ID
+     * @param status reading status
+     * @return count of readings
+     */
+    long countByUserIdAndStatus(UUID userId, ReadingStatus status);
 }
