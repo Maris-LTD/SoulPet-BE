@@ -6,6 +6,7 @@ import com.mystictarot.backend.entity.User;
 import com.mystictarot.backend.entity.enums.PlanType;
 import com.mystictarot.backend.entity.enums.ReadingStatus;
 import com.mystictarot.backend.exception.ResourceNotFoundException;
+import com.mystictarot.backend.exception.ValidationException;
 import com.mystictarot.backend.repository.ReadingRepository;
 import com.mystictarot.backend.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -368,8 +369,8 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException when name exceeds 100 characters")
-    void shouldThrowIllegalArgumentException_WhenNameExceeds100Characters() {
+    @DisplayName("Should throw ValidationException when name exceeds 100 characters")
+    void shouldThrowValidationException_WhenNameExceeds100Characters() {
         // Given
         String longName = "a".repeat(101);
         UpdateProfileRequestDTO request = UpdateProfileRequestDTO.builder()
@@ -380,7 +381,7 @@ class UserServiceTest {
 
         // When & Then
         assertThatThrownBy(() -> userService.updateProfile(testUserId, request))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Name must not exceed 100 characters");
 
         verify(userRepository, times(1)).findById(testUserId);
@@ -388,8 +389,8 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException when avatarUrl exceeds 500 characters")
-    void shouldThrowIllegalArgumentException_WhenAvatarUrlExceeds500Characters() {
+    @DisplayName("Should throw ValidationException when avatarUrl exceeds 500 characters")
+    void shouldThrowValidationException_WhenAvatarUrlExceeds500Characters() {
         // Given
         String longUrl = "https://example.com/" + "a".repeat(500);
         UpdateProfileRequestDTO request = UpdateProfileRequestDTO.builder()
@@ -400,7 +401,7 @@ class UserServiceTest {
 
         // When & Then
         assertThatThrownBy(() -> userService.updateProfile(testUserId, request))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Avatar URL must not exceed 500 characters");
 
         verify(userRepository, times(1)).findById(testUserId);
@@ -408,8 +409,8 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("Should throw IllegalArgumentException when avatarUrl is not valid HTTP/HTTPS URL")
-    void shouldThrowIllegalArgumentException_WhenAvatarUrlIsNotValidUrl() {
+    @DisplayName("Should throw ValidationException when avatarUrl is not valid HTTP/HTTPS URL")
+    void shouldThrowValidationException_WhenAvatarUrlIsNotValidUrl() {
         // Given
         UpdateProfileRequestDTO request = UpdateProfileRequestDTO.builder()
                 .avatarUrl("invalid-url")
@@ -419,7 +420,7 @@ class UserServiceTest {
 
         // When & Then
         assertThatThrownBy(() -> userService.updateProfile(testUserId, request))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Avatar URL must be a valid HTTP/HTTPS URL");
 
         verify(userRepository, times(1)).findById(testUserId);

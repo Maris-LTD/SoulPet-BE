@@ -6,6 +6,7 @@ import com.mystictarot.backend.entity.User;
 import com.mystictarot.backend.entity.enums.PlanType;
 import com.mystictarot.backend.entity.enums.ReadingStatus;
 import com.mystictarot.backend.exception.ResourceNotFoundException;
+import com.mystictarot.backend.exception.ValidationException;
 import com.mystictarot.backend.repository.ReadingRepository;
 import com.mystictarot.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -79,7 +80,7 @@ public class UserService {
             String trimmedName = request.getName().trim();
             if (!trimmedName.isEmpty()) {
                 if (trimmedName.length() > 100) {
-                    throw new IllegalArgumentException("Name must not exceed 100 characters");
+                    throw new ValidationException("Name must not exceed 100 characters");
                 }
                 user.setName(trimmedName);
                 log.debug("Updated name for user: {}", userId);
@@ -90,10 +91,10 @@ public class UserService {
             String trimmedAvatarUrl = request.getAvatarUrl().trim();
             if (!trimmedAvatarUrl.isEmpty()) {
                 if (trimmedAvatarUrl.length() > 500) {
-                    throw new IllegalArgumentException("Avatar URL must not exceed 500 characters");
+                    throw new ValidationException("Avatar URL must not exceed 500 characters");
                 }
                 if (!trimmedAvatarUrl.matches("^(https?://).+")) {
-                    throw new IllegalArgumentException("Avatar URL must be a valid HTTP/HTTPS URL");
+                    throw new ValidationException("Avatar URL must be a valid HTTP/HTTPS URL");
                 }
                 user.setAvatarUrl(trimmedAvatarUrl);
                 log.debug("Updated avatar URL for user: {}", userId);
