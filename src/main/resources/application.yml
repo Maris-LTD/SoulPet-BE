@@ -78,6 +78,15 @@ gemini:
   api-key: ${GEMINI_API_KEY:your-api-key}
   base-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent
 
+# Subscription Plan Limits Configuration
+subscription:
+  plan:
+    limits:
+      free: 3      # FREE plan: 3 readings per week
+      monthly: 20  # MONTHLY plan: 20 readings per week
+      retail5: 5   # RETAIL_5 plan: 5 readings per week
+      # UNLIMITED plan uses -1 (hardcoded in service)
+
 # Payment Gateway Configuration (sẽ được implement sau)
 payment:
   momo:
