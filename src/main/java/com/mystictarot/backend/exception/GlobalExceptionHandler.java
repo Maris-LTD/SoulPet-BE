@@ -87,6 +87,42 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
     }
 
+    @ExceptionHandler(ReadingLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleReadingLimitExceededException(ReadingLimitExceededException ex) {
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.TOO_MANY_REQUESTS.value())
+                .error("Limit Exceeded")
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(errorResponse);
+    }
+
+    @ExceptionHandler(InsufficientCreditsException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientCreditsException(InsufficientCreditsException ex) {
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Forbidden")
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
+    }
+
+    @ExceptionHandler(GeminiServiceException.class)
+    public ResponseEntity<ErrorResponse> handleGeminiServiceException(GeminiServiceException ex) {
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.BAD_GATEWAY.value())
+                .error("Service Unavailable")
+                .message("AI interpretation service is temporarily unavailable. Please try again later.")
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(errorResponse);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(Exception ex) {
         ErrorResponse errorResponse = ErrorResponse.builder()

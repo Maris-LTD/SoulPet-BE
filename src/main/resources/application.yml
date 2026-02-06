@@ -73,10 +73,15 @@ jwt:
   issuer: ${JWT_ISSUER:MysticTarotBackend}
   audience: ${JWT_AUDIENCE:MysticTarotFrontend}
 
-# Gemini AI Configuration (sẽ được implement sau)
+# Gemini AI Configuration
 gemini:
   api-key: ${GEMINI_API_KEY:your-api-key}
   base-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent
+  connect-timeout: 10000
+  read-timeout: 60000
+  max-retries: 3
+  retry-initial-delay: 1000
+  retry-max-delay: 10000
 
 # Subscription Plan Limits Configuration
 subscription:
