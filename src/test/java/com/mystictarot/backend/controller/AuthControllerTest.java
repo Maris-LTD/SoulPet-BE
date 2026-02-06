@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -82,9 +83,8 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("Should return 409 CONFLICT when email already exists")
-    void shouldReturn409Conflict_WhenEmailAlreadyExists() {
-        // Given
+    @DisplayName("Should throw when email already exists (GlobalExceptionHandler returns 409)")
+    void shouldThrow_WhenEmailAlreadyExists() {
         RegisterRequestDTO request = RegisterRequestDTO.builder()
                 .email("test@example.com")
                 .password("password123")
@@ -94,12 +94,9 @@ class AuthControllerTest {
         when(authService.register(any(RegisterRequestDTO.class)))
                 .thenThrow(new IllegalArgumentException("Email already exists"));
 
-        // When
-        ResponseEntity<AuthResponseDTO> response = authController.register(request);
-
-        // Then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-        assertThat(response.getBody()).isNull();
+        assertThatThrownBy(() -> authController.register(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Email already exists");
     }
 
 
@@ -125,9 +122,8 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("Should return 401 UNAUTHORIZED when login credentials are invalid")
-    void shouldReturn401Unauthorized_WhenLoginCredentialsAreInvalid() {
-        // Given
+    @DisplayName("Should throw BadCredentialsException when login credentials are invalid")
+    void shouldThrow_WhenLoginCredentialsAreInvalid() {
         LoginRequestDTO request = LoginRequestDTO.builder()
                 .email("test@example.com")
                 .password("wrongPassword")
@@ -136,12 +132,8 @@ class AuthControllerTest {
         when(authService.login(any(LoginRequestDTO.class)))
                 .thenThrow(new org.springframework.security.authentication.BadCredentialsException("Invalid credentials"));
 
-        // When
-        ResponseEntity<AuthResponseDTO> response = authController.login(request);
-
-        // Then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(response.getBody()).isNull();
+        assertThatThrownBy(() -> authController.login(request))
+                .isInstanceOf(org.springframework.security.authentication.BadCredentialsException.class);
     }
 
     @Test
@@ -168,9 +160,8 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("Should return 400 BAD_REQUEST when social login service throws exception")
-    void shouldReturn400BadRequest_WhenSocialLoginServiceThrowsException() {
-        // Given
+    @DisplayName("Should throw when social login service throws exception")
+    void shouldThrow_WhenSocialLoginServiceThrowsException() {
         SocialLoginRequestDTO request = SocialLoginRequestDTO.builder()
                 .provider("google")
                 .accessToken("invalidToken")
@@ -180,11 +171,8 @@ class AuthControllerTest {
         when(authService.socialLogin(any(SocialLoginRequestDTO.class)))
                 .thenThrow(new RuntimeException("Invalid token"));
 
-        // When
-        ResponseEntity<AuthResponseDTO> response = authController.socialLogin(request);
-
-        // Then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody()).isNull();
+        assertThatThrownBy(() -> authController.socialLogin(request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Invalid token");
     }
 }

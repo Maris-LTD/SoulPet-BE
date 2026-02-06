@@ -23,7 +23,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
      * @param pageable pagination parameters
      * @return Page of Transactions
      */
-    Page<Transaction> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    Page<Transaction> findByUser_IdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
     /**
      * Find all transactions by user ID and status
@@ -31,7 +31,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
      * @param status transaction status
      * @return List of Transactions
      */
-    List<Transaction> findByUserIdAndStatus(UUID userId, TransactionStatus status);
+    List<Transaction> findByUser_IdAndStatus(UUID userId, TransactionStatus status);
 
     /**
      * Find transaction by provider transaction ID
@@ -47,4 +47,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
      * @return true if exists
      */
     boolean existsByProviderTransactionId(String providerTransactionId);
+
+    /**
+     * Find transaction by user ID and idempotency key for duplicate request handling
+     * @param userId user ID
+     * @param idempotencyKey idempotency key from client
+     * @return Optional Transaction
+     */
+    Optional<Transaction> findByUser_IdAndIdempotencyKey(UUID userId, String idempotencyKey);
 }

@@ -109,8 +109,13 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# Environment variables
+# Environment variables and local config (secrets)
 .env
+.env.local
+application-local.yml
+application-local.properties
+*-local.yml
+*-local.properties
 .vscode
 .idea
 .cursor

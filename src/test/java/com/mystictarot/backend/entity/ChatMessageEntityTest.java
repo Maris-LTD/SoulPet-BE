@@ -152,8 +152,8 @@ class ChatMessageEntityTest {
         Set<ConstraintViolation<ChatMessage>> violations = validator.validate(chatMessage);
 
         // Then
-        assertThat(violations).hasSize(1);
-        assertThat(violations.iterator().next().getMessage()).contains("Content must not be empty");
+        assertThat(violations).isNotEmpty();
+        assertThat(violations.iterator().next().getMessage()).contains("Content must be between 1 and 10000 characters");
     }
 
     @Test

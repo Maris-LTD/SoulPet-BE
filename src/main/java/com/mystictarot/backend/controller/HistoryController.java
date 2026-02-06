@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,6 +25,7 @@ import java.util.UUID;
 @RequestMapping("/history")
 @RequiredArgsConstructor
 @Tag(name = "History", description = "Reading history APIs")
+@SecurityRequirement(name = "bearerAuth")
 public class HistoryController {
 
     private final HistoryService historyService;
@@ -31,8 +33,7 @@ public class HistoryController {
     @GetMapping
     @Operation(summary = "Get reading history", description = "Retrieve paginated list of active readings for current user")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "History retrieved successfully",
-                    content = @Content(schema = @Schema(implementation = Page.class))),
+            @ApiResponse(responseCode = "200", description = "Paginated list of ReadingHistoryItemDTO (content, pageable, totalElements, etc.)"),
             @ApiResponse(responseCode = "401", description = "Unauthorized - Invalid or missing JWT token")
     })
     public ResponseEntity<Page<ReadingHistoryItemDTO>> getHistory(

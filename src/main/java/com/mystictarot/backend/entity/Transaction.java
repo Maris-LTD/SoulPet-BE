@@ -22,14 +22,16 @@ import java.util.UUID;
  * Transaction entity representing payment transactions
  */
 @Entity
-@Table(name = "transactions", 
+@Table(name = "transactions",
     indexes = {
         @Index(name = "idx_transactions_user_id", columnList = "user_id"),
         @Index(name = "idx_transactions_status", columnList = "status"),
-        @Index(name = "idx_transactions_provider_transaction_id", columnList = "provider_transaction_id")
+        @Index(name = "idx_transactions_provider_transaction_id", columnList = "provider_transaction_id"),
+        @Index(name = "idx_transactions_idempotency_key", columnList = "user_id, idempotency_key")
     },
     uniqueConstraints = {
-        @UniqueConstraint(name = "uk_transactions_provider_id", columnNames = {"provider", "provider_transaction_id"})
+        @UniqueConstraint(name = "uk_transactions_provider_id", columnNames = {"provider", "provider_transaction_id"}),
+        @UniqueConstraint(name = "uk_transactions_user_idempotency", columnNames = {"user_id", "idempotency_key"})
     }
 )
 @Data
@@ -72,6 +74,14 @@ public class Transaction {
     @Column(name = "provider_transaction_id", length = 255)
     @Size(max = 255, message = "Provider transaction ID must not exceed 255 characters")
     private String providerTransactionId;
+
+    @Column(name = "idempotency_key", length = 255)
+    @Size(max = 255, message = "Idempotency key must not exceed 255 characters")
+    private String idempotencyKey;
+
+    @Column(name = "payment_url", length = 2000)
+    @Size(max = 2000)
+    private String paymentUrl;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

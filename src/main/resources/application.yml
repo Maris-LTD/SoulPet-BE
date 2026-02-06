@@ -1,10 +1,14 @@
+app:
+  rate-limit:
+    auth-max-per-minute: ${APP_RATE_LIMIT_AUTH_MAX_PER_MINUTE:20}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+
 spring:
   application:
     name: MysticTarotBackend
 
   datasource:
-    # Local PostgreSQL Connection
-    # Use environment variables for security: DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, DB_PASSWORD
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:postgres}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:}
@@ -47,8 +51,7 @@ server:
   servlet:
     context-path: /api/v1
 
-# SpringDoc OpenAPI (Swagger) Configuration
-# Swagger UI is only enabled in dev and staging profiles for security
+# SpringDoc OpenAPI (Swagger) - tắt trên production
 springdoc:
   api-docs:
     path: /v3/api-docs
@@ -58,6 +61,9 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
     try-it-out-enabled: true
+  packages-to-scan: com.mystictarot.backend.controller
+  paths-to-match: /**
+  show-actuator: false
 
 logging:
   level:
@@ -66,17 +72,17 @@ logging:
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
-# JWT Configuration
+# JWT Configuration (JWT_SECRET bắt buộc khi deploy; dev có thể dùng default)
 jwt:
-  secret: ${JWT_SECRET:your-secret-key-change-in-production}
-  expiration: 86400000 # 24 hours in milliseconds
+  secret: ${JWT_SECRET:}
+  expiration: ${JWT_EXPIRATION_MS:86400000}
   issuer: ${JWT_ISSUER:MysticTarotBackend}
   audience: ${JWT_AUDIENCE:MysticTarotFrontend}
 
-# Gemini AI Configuration
+# Gemini AI Configuration (GEMINI_API_KEY bắt buộc khi deploy)
 gemini:
-  api-key: ${GEMINI_API_KEY:your-api-key}
-  base-url: https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent
+  api-key: ${GEMINI_API_KEY:}
+  base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent}
   connect-timeout: 10000
   read-timeout: 60000
   max-retries: 3
@@ -92,16 +98,36 @@ subscription:
       retail5: 5   # RETAIL_5 plan: 5 readings per week
       # UNLIMITED plan uses -1 (hardcoded in service)
 
-# Payment Gateway Configuration (sẽ được implement sau)
+# Payment Gateway Configuration
 payment:
+  order-expiry-minutes: 15
+  plans:
+    monthly:
+      amount: 99000
+      currency: VND
+    unlimited:
+      amount: 499000
+      currency: VND
+    retail_5:
+      amount: 29000
+      currency: VND
+      extra-credits: 5
   momo:
     partner-code: ${MOMO_PARTNER_CODE:}
     access-key: ${MOMO_ACCESS_KEY:}
     secret-key: ${MOMO_SECRET_KEY:}
+    endpoint: ${MOMO_ENDPOINT:}
+    ipn-url: ${MOMO_IPN_URL:}
+    redirect-url: ${MOMO_REDIRECT_URL:}
   zalopay:
     app-id: ${ZALOPAY_APP_ID:}
     key1: ${ZALOPAY_KEY1:}
     key2: ${ZALOPAY_KEY2:}
+    endpoint: ${ZALOPAY_ENDPOINT:}
+    callback-url: ${ZALOPAY_CALLBACK_URL:}
   stripe:
     secret-key: ${STRIPE_SECRET_KEY:}
     publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    success-url: ${STRIPE_SUCCESS_URL:}
+    cancel-url: ${STRIPE_CANCEL_URL:}

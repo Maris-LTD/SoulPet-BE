@@ -1,0 +1,223 @@
+{
+  "info": {
+    "name": "Mystic Tarot AI - Backend API",
+    "description": "REST API for Mystic Tarot AI: auth, user profile, tarot readings, history, payments.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/api/v1" },
+    { "key": "token", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePass123\",\n  \"name\": \"Test User\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/register",
+            "description": "Register new user. Returns JWT and user info. Plan defaults to FREE."
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.token) pm.environment.set('token', json.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePass123\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Login with email/password. Saves token to environment if response is 200."
+          }
+        },
+        {
+          "name": "Social Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"google\",\n  \"accessToken\": \"<oauth2_access_token>\",\n  \"email\": \"user@gmail.com\",\n  \"name\": \"User Name\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/social",
+            "description": "Login with Google/Facebook OAuth2 access token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/user/profile",
+            "description": "Get current user profile and usage (weekly readings, plan, extra credits). Requires JWT."
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Name\",\n  \"avatarUrl\": \"https://example.com/avatar.png\"\n}"
+            },
+            "url": "{{baseUrl}}/user/profile",
+            "description": "Update name and/or avatar. Requires JWT."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tarot",
+      "item": [
+        {
+          "name": "Interpret Reading",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What should I focus on this week?\",\n  \"spreadType\": \"THREE_CARDS\",\n  \"cards\": [\n    { \"cardId\": 1, \"orientation\": \"UPRIGHT\" },\n    { \"cardId\": 2, \"orientation\": \"REVERSED\" },\n    { \"cardId\": 3, \"orientation\": \"UPRIGHT\" }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/tarot/interpret",
+            "description": "Submit cards and question for AI interpretation. Uses weekly quota. Requires JWT."
+          }
+        },
+        {
+          "name": "Follow-up Question",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"readingId\": \"<uuid-from-interpret-response>\",\n  \"content\": \"Can you elaborate on the second card?\"\n}"
+            },
+            "url": "{{baseUrl}}/tarot/follow-up",
+            "description": "Ask follow-up about a reading. Consumes 1 extra credit. Requires JWT."
+          }
+        }
+      ]
+    },
+    {
+      "name": "History",
+      "item": [
+        {
+          "name": "Get History",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/history?page=0&size=10&sort=createdAt,desc",
+            "description": "Paginated list of readings. Requires JWT."
+          }
+        },
+        {
+          "name": "Get Reading Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/history/{{readingId}}",
+            "description": "Full reading with chat messages. Replace {{readingId}} with UUID. Requires JWT."
+          }
+        },
+        {
+          "name": "Delete Reading",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/history/{{readingId}}",
+            "description": "Soft delete a reading. Replace {{readingId}}. Requires JWT."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment",
+      "item": [
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planType\": \"MONTHLY\",\n  \"provider\": \"MOMO\",\n  \"returnUrl\": \"https://yourapp.com/success\",\n  \"cancelUrl\": \"https://yourapp.com/cancel\",\n  \"idempotencyKey\": \"unique-key-optional\"\n}"
+            },
+            "url": "{{baseUrl}}/payments/create-order",
+            "description": "Create payment order. planType: MONTHLY | UNLIMITED | RETAIL_5. provider: MOMO | ZALOPAY | STRIPE. Returns paymentUrl. Requires JWT."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment Webhooks (server callbacks)",
+      "item": [
+        {
+          "name": "Webhook Momo",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{baseUrl}}/payments/webhook/momo",
+            "description": "Called by Momo. Not for manual testing unless simulating IPN."
+          }
+        },
+        {
+          "name": "Webhook ZaloPay",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{baseUrl}}/payments/webhook/zalopay",
+            "description": "Called by ZaloPay."
+          }
+        },
+        {
+          "name": "Webhook Stripe",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Stripe-Signature", "value": "{{stripeSignature}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{}" },
+            "url": "{{baseUrl}}/payments/webhook/stripe",
+            "description": "Called by Stripe. Requires Stripe-Signature header."
+          }
+        }
+      ]
+    }
+  ]
+}
