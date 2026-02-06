@@ -1,0 +1,13 @@
+target/
+.git
+.gitignore
+.env
+.env.local
+*.md
+.idea
+.vscode
+.cursor
+*.iml
+.mvn/wrapper/maven-wrapper.jar
+postman/
+**/node_modules/
