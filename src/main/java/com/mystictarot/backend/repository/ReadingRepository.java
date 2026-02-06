@@ -29,6 +29,15 @@ public interface ReadingRepository extends JpaRepository<Reading, UUID> {
     Page<Reading> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
     /**
+     * Find readings by user ID and status with pagination (for history list - ACTIVE only)
+     * @param userId user ID
+     * @param status reading status (e.g. ACTIVE)
+     * @param pageable pagination parameters
+     * @return Page of Readings
+     */
+    Page<Reading> findByUserIdAndStatusOrderByCreatedAtDesc(UUID userId, ReadingStatus status, Pageable pageable);
+
+    /**
      * Find all readings by user ID and status
      * @param userId user ID
      * @param status reading status
