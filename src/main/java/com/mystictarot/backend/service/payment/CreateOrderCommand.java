@@ -16,6 +16,7 @@ public class CreateOrderCommand {
 
     private PlanType planType;
     private BigDecimal amount;
+    private String currency;
     private String returnUrl;
     private String cancelUrl;
     private String idempotencyKey;

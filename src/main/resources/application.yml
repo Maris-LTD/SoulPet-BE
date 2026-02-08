@@ -101,18 +101,33 @@ subscription:
 # Payment Gateway Configuration
 payment:
   order-expiry-minutes: 15
+  default-locale: ${PAYMENT_DEFAULT_LOCALE:vi}
   plans:
     monthly:
-      amount: 99000
+      amount: 199000
       currency: VND
     unlimited:
-      amount: 499000
+      amount: 399000
       currency: VND
     retail_5:
-      amount: 29000
+      amount: 19000
       currency: VND
       extra-credits: 5
+  locales:
+    # Used for all non-VN (lang != vi/vn). USD amount as decimal (e.g. 19.99).
+    en:
+      monthly:
+        amount: 12.99
+        currency: USD
+      unlimited:
+        amount: 39.99
+        currency: USD
+      retail_5:
+        amount: 1.99
+        currency: USD
+        extra-credits: 5
   momo:
+    enabled: ${MOMO_ENABLED:false}
     partner-code: ${MOMO_PARTNER_CODE:}
     access-key: ${MOMO_ACCESS_KEY:}
     secret-key: ${MOMO_SECRET_KEY:}
@@ -120,12 +135,14 @@ payment:
     ipn-url: ${MOMO_IPN_URL:}
     redirect-url: ${MOMO_REDIRECT_URL:}
   zalopay:
+    enabled: ${ZALOPAY_ENABLED:false}
     app-id: ${ZALOPAY_APP_ID:}
     key1: ${ZALOPAY_KEY1:}
     key2: ${ZALOPAY_KEY2:}
     endpoint: ${ZALOPAY_ENDPOINT:}
     callback-url: ${ZALOPAY_CALLBACK_URL:}
   stripe:
+    currency: ${STRIPE_CURRENCY:vnd}
     secret-key: ${STRIPE_SECRET_KEY:}
     publishable-key: ${STRIPE_PUBLISHABLE_KEY:}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}

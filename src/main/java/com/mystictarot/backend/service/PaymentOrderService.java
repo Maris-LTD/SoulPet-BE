@@ -28,15 +28,7 @@ public class PaymentOrderService {
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
     private final PaymentServiceFactory paymentServiceFactory;
-
-    @Value("${payment.plans.monthly.amount:99000}")
-    private long monthlyAmount;
-
-    @Value("${payment.plans.unlimited.amount:499000}")
-    private long unlimitedAmount;
-
-    @Value("${payment.plans.retail_5.amount:29000}")
-    private long retail5Amount;
+    private final PaymentPlanService paymentPlanService;
 
     @Value("${payment.order-expiry-minutes:15}")
     private int orderExpiryMinutes;
@@ -48,7 +40,9 @@ public class PaymentOrderService {
         }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
-        BigDecimal amount = getAmountForPlan(request.getPlanType());
+        var planPrice = paymentPlanService.getPlanPrice(request.getPlanType(), request.getLang());
+        BigDecimal amount = planPrice.amount();
+        String currency = planPrice.currency();
         Transaction transaction;
         if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
             var existing = transactionRepository.findByUser_IdAndIdempotencyKey(userId, request.getIdempotencyKey());
@@ -86,6 +80,7 @@ public class PaymentOrderService {
         CreateOrderCommand command = CreateOrderCommand.builder()
                 .planType(request.getPlanType())
                 .amount(amount)
+                .currency(currency)
                 .returnUrl(request.getReturnUrl())
                 .cancelUrl(request.getCancelUrl())
                 .idempotencyKey(request.getIdempotencyKey())
@@ -107,12 +102,4 @@ public class PaymentOrderService {
                 .build();
     }
 
-    private BigDecimal getAmountForPlan(PlanType planType) {
-        return switch (planType) {
-            case MONTHLY -> BigDecimal.valueOf(monthlyAmount);
-            case UNLIMITED -> BigDecimal.valueOf(unlimitedAmount);
-            case RETAIL_5 -> BigDecimal.valueOf(retail5Amount);
-            default -> throw new InvalidPaymentException("Invalid plan type for payment: " + planType);
-        };
-    }
 }

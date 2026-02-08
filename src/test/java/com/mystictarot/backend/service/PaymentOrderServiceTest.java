@@ -13,6 +13,7 @@ import com.mystictarot.backend.repository.TransactionRepository;
 import com.mystictarot.backend.repository.UserRepository;
 import com.mystictarot.backend.service.payment.CreateOrderResult;
 import com.mystictarot.backend.service.payment.PaymentServiceFactory;
+import com.mystictarot.backend.service.payment.PlanPrice;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,6 +47,9 @@ class PaymentOrderServiceTest {
     private PaymentServiceFactory paymentServiceFactory;
 
     @Mock
+    private PaymentPlanService paymentPlanService;
+
+    @Mock
     private com.mystictarot.backend.service.payment.PaymentProviderService paymentProviderService;
 
     @InjectMocks
@@ -56,10 +61,10 @@ class PaymentOrderServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(paymentOrderService, "monthlyAmount", 99000L);
-        ReflectionTestUtils.setField(paymentOrderService, "unlimitedAmount", 499000L);
-        ReflectionTestUtils.setField(paymentOrderService, "retail5Amount", 29000L);
         ReflectionTestUtils.setField(paymentOrderService, "orderExpiryMinutes", 15);
+        when(paymentPlanService.getPlanPrice(eq(PlanType.MONTHLY), any())).thenReturn(new PlanPrice(BigDecimal.valueOf(99000), "VND"));
+        when(paymentPlanService.getPlanPrice(eq(PlanType.UNLIMITED), any())).thenReturn(new PlanPrice(BigDecimal.valueOf(499000), "VND"));
+        when(paymentPlanService.getPlanPrice(eq(PlanType.RETAIL_5), any())).thenReturn(new PlanPrice(BigDecimal.valueOf(29000), "VND"));
         userId = UUID.randomUUID();
         user = User.builder()
                 .id(userId)
@@ -99,14 +104,6 @@ class PaymentOrderServiceTest {
     @DisplayName("Should create order and return payment URL")
     void createOrder_Success_ReturnsResponse() {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        Transaction savedTransaction = Transaction.builder()
-                .id(UUID.randomUUID())
-                .user(user)
-                .amount(BigDecimal.valueOf(99000))
-                .planType(PlanType.MONTHLY)
-                .provider(PaymentProvider.MOMO)
-                .status(TransactionStatus.PENDING)
-                .build();
         when(transactionRepository.save(any(Transaction.class))).thenAnswer(inv -> {
             Transaction t = inv.getArgument(0);
             if (t.getId() == null) {

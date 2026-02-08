@@ -38,6 +38,10 @@ public class CreateOrderRequestDTO {
     @Size(max = 255)
     private String idempotencyKey;
 
+    @Schema(description = "Language/locale code for localized price (e.g. vi, en). Default from server config.")
+    @Size(max = 10)
+    private String lang;
+
     @AssertTrue(message = "Plan type must be MONTHLY, UNLIMITED or RETAIL_5")
     @Schema(hidden = true)
     public boolean isPlanTypePurchasable() {

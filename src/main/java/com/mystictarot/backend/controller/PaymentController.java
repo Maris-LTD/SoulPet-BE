@@ -2,7 +2,9 @@ package com.mystictarot.backend.controller;
 
 import com.mystictarot.backend.dto.request.CreateOrderRequestDTO;
 import com.mystictarot.backend.dto.response.CreateOrderResponseDTO;
+import com.mystictarot.backend.dto.response.PlanInfoDTO;
 import com.mystictarot.backend.service.PaymentOrderService;
+import com.mystictarot.backend.service.PaymentPlanService;
 import com.mystictarot.backend.util.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -16,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -25,6 +28,17 @@ import java.util.UUID;
 public class PaymentController {
 
     private final PaymentOrderService paymentOrderService;
+    private final PaymentPlanService paymentPlanService;
+
+    @GetMapping("/plans")
+    @Operation(summary = "Get purchasable plans with prices", description = "Returns list of plans (MONTHLY, UNLIMITED, RETAIL_5) with localized amount and currency. lang=vi or lang=vn → VND (Vietnam only); any other lang → USD. Default from payment.default-locale (vi). Public, no auth required.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "List of plans", content = @Content(schema = @Schema(implementation = PlanInfoDTO.class)))
+    })
+    public ResponseEntity<List<PlanInfoDTO>> getPlans(
+            @RequestParam(name = "lang", required = false) String lang) {
+        return ResponseEntity.ok(paymentPlanService.getPurchasablePlans(lang));
+    }
 
     @PostMapping("/create-order")
     @Operation(summary = "Create payment order", description = "Creates a payment order for subscription plan (MONTHLY, UNLIMITED, RETAIL_5). Returns transaction ID and payment URL for redirect. Requires JWT.", security = @SecurityRequirement(name = "bearerAuth"))
