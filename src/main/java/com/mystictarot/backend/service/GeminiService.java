@@ -64,8 +64,8 @@ public class GeminiService {
                 .build();
     }
 
-    public String generateInterpretation(String question, SpreadType spreadType, String cardsDescriptionForPrompt) {
-        String prompt = buildInterpretationPrompt(question, spreadType, cardsDescriptionForPrompt);
+    public String generateInterpretation(String question, SpreadType spreadType, String cardsDescriptionForPrompt, String responseLocale) {
+        String prompt = buildInterpretationPrompt(question, spreadType, cardsDescriptionForPrompt, responseLocale);
         return callGeminiWithRetry(prompt);
     }
 
@@ -74,7 +74,10 @@ public class GeminiService {
         return callGeminiWithRetry(prompt);
     }
 
-    private String buildInterpretationPrompt(String question, SpreadType spreadType, String cardsDescriptionForPrompt) {
+    private String buildInterpretationPrompt(String question, SpreadType spreadType, String cardsDescriptionForPrompt, String responseLocale) {
+        String langInstruction = "vi".equalsIgnoreCase(responseLocale)
+                ? "Respond in Vietnamese."
+                : "Respond in English.";
         return """
                 You are an expert tarot reader. Provide a clear, insightful interpretation for this tarot reading.
 
@@ -85,9 +88,9 @@ public class GeminiService {
 
                 Question from the seeker: %s
 
-                Respond with a single coherent interpretation (2-4 paragraphs). Do not include titles or labels, only the interpretation text.
+                %s Respond with a single coherent interpretation (2-4 paragraphs). Do not include titles or labels, only the interpretation text.
                 """
-                .formatted(spreadType.name(), cardsDescriptionForPrompt, question);
+                .formatted(spreadType.name(), cardsDescriptionForPrompt, question, langInstruction);
     }
 
     private String buildFollowUpPrompt(String readingContext, String userMessage) {

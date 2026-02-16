@@ -61,6 +61,7 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**", "/api/v1/auth/**").permitAll()
                         .requestMatchers("/payments/webhook/**", "/api/v1/payments/webhook/**").permitAll()
                         .requestMatchers("/payments/plans", "/api/v1/payments/plans").permitAll()
+                        .requestMatchers("/tarot/cards", "/api/v1/tarot/cards").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/api/v1/swagger-ui/**", "/api/v1/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated()
                 )

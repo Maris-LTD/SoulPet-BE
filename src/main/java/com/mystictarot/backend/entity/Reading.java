@@ -10,7 +10,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -58,6 +60,7 @@ public class Reading {
      * Expected format: [{"id": 1, "orientation": "UPRIGHT"}, {"id": 15, "orientation": "REVERSED"}]
      * Validation is performed at service layer to ensure valid JSON format
      */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "cards_json", nullable = false, columnDefinition = "JSONB")
     @NotNull(message = "Cards JSON is required")
     private String cardsJson;

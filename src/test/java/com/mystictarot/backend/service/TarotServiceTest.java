@@ -9,6 +9,7 @@ import com.mystictarot.backend.dto.response.InterpretResponseDTO;
 import com.mystictarot.backend.entity.ChatMessage;
 import com.mystictarot.backend.entity.Reading;
 import com.mystictarot.backend.entity.TarotCard;
+import com.mystictarot.backend.entity.TarotCardTranslation;
 import com.mystictarot.backend.entity.User;
 import com.mystictarot.backend.entity.enums.CardOrientation;
 import com.mystictarot.backend.entity.enums.ChatRole;
@@ -23,7 +24,9 @@ import com.mystictarot.backend.exception.ValidationException;
 import com.mystictarot.backend.repository.ChatMessageRepository;
 import com.mystictarot.backend.repository.ReadingRepository;
 import com.mystictarot.backend.repository.TarotCardRepository;
+import com.mystictarot.backend.repository.TarotCardTranslationRepository;
 import com.mystictarot.backend.repository.UserRepository;
+import com.mystictarot.backend.util.LocaleUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -70,6 +73,12 @@ class TarotServiceTest {
     private TarotCardRepository tarotCardRepository;
 
     @Mock
+    private TarotCardTranslationRepository tarotCardTranslationRepository;
+
+    @Mock
+    private LocaleUtil localeUtil;
+
+    @Mock
     private GeminiService geminiService;
 
     @InjectMocks
@@ -108,10 +117,18 @@ class TarotServiceTest {
                 CardDTO.builder().id(3).orientation(CardOrientation.UPRIGHT).build()
         );
         tarotCards = List.of(
-                TarotCard.builder().id(1).name("The Magician").description("Magic").suit(SuitType.MAJOR_ARCANA).cardNumber(1).build(),
-                TarotCard.builder().id(2).name("The High Priestess").description("Intuition").suit(SuitType.MAJOR_ARCANA).cardNumber(2).build(),
-                TarotCard.builder().id(3).name("The Empress").description("Abundance").suit(SuitType.MAJOR_ARCANA).cardNumber(3).build()
+                TarotCard.builder().id(1).suit(SuitType.MAJOR_ARCANA).cardNumber(1).build(),
+                TarotCard.builder().id(2).suit(SuitType.MAJOR_ARCANA).cardNumber(2).build(),
+                TarotCard.builder().id(3).suit(SuitType.MAJOR_ARCANA).cardNumber(3).build()
         );
+        when(localeUtil.resolve(any())).thenReturn("en");
+        when(localeUtil.getDefaultLocale()).thenReturn("vi");
+        List<TarotCardTranslation> translations = List.of(
+                TarotCardTranslation.builder().tarotCard(tarotCards.get(0)).locale("en").name("The Magician").description("Magic").build(),
+                TarotCardTranslation.builder().tarotCard(tarotCards.get(1)).locale("en").name("The High Priestess").description("Intuition").build(),
+                TarotCardTranslation.builder().tarotCard(tarotCards.get(2)).locale("en").name("The Empress").description("Abundance").build()
+        );
+        when(tarotCardTranslationRepository.findByTarotCard_IdInAndLocale(anyList(), eq("en"))).thenReturn(translations);
         ReflectionTestUtils.setField(tarotService, "freePlanLimit", 3);
         ReflectionTestUtils.setField(tarotService, "monthlyPlanLimit", 20);
         ReflectionTestUtils.setField(tarotService, "retail5PlanLimit", 5);
@@ -131,7 +148,7 @@ class TarotServiceTest {
         when(readingRepository.countWeeklyReadingsByUserId(eq(userId), eq(ReadingStatus.ACTIVE), any(LocalDateTime.class)))
                 .thenReturn(1L);
         doReturn(tarotCards).when(tarotCardRepository).findAllById(anyIterable());
-        when(geminiService.generateInterpretation(any(), eq(SpreadType.THREE_CARDS), anyString()))
+        when(geminiService.generateInterpretation(any(), eq(SpreadType.THREE_CARDS), anyString(), anyString()))
                 .thenReturn(interpretation);
         when(readingRepository.save(any(Reading.class))).thenAnswer(inv -> {
             Reading r = inv.getArgument(0);
@@ -152,7 +169,7 @@ class TarotServiceTest {
                         && r.getSpreadType() == SpreadType.THREE_CARDS
                         && r.getStatus() == ReadingStatus.ACTIVE
                         && r.getInterpretationText().equals(interpretation)));
-        verify(geminiService).generateInterpretation(eq("What should I focus on?"), eq(SpreadType.THREE_CARDS), anyString());
+        verify(geminiService).generateInterpretation(eq("What should I focus on?"), eq(SpreadType.THREE_CARDS), anyString(), eq("en"));
     }
 
     @Test
@@ -169,7 +186,7 @@ class TarotServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("User");
 
-        verify(geminiService, never()).generateInterpretation(any(), any(), any());
+        verify(geminiService, never()).generateInterpretation(any(), any(), any(), any());
         verify(readingRepository, never()).save(any());
     }
 
@@ -188,7 +205,7 @@ class TarotServiceTest {
                 .hasMessageContaining("Number of cards must be 3");
 
         verify(tarotCardRepository, never()).findAllById(any());
-        verify(geminiService, never()).generateInterpretation(any(), any(), any());
+        verify(geminiService, never()).generateInterpretation(any(), any(), any(), any());
     }
 
     @Test
@@ -209,7 +226,7 @@ class TarotServiceTest {
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("invalid");
 
-        verify(geminiService, never()).generateInterpretation(any(), any(), any());
+        verify(geminiService, never()).generateInterpretation(any(), any(), any(), any());
     }
 
     @Test
@@ -230,7 +247,7 @@ class TarotServiceTest {
                 .isInstanceOf(ReadingLimitExceededException.class)
                 .hasMessageContaining("limit reached");
 
-        verify(geminiService, never()).generateInterpretation(any(), any(), any());
+        verify(geminiService, never()).generateInterpretation(any(), any(), any(), any());
     }
 
     @Test
@@ -240,7 +257,7 @@ class TarotServiceTest {
         String interpretation = "Unlimited insight.";
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         doReturn(tarotCards).when(tarotCardRepository).findAllById(anyIterable());
-        when(geminiService.generateInterpretation(any(), eq(SpreadType.THREE_CARDS), anyString()))
+        when(geminiService.generateInterpretation(any(), eq(SpreadType.THREE_CARDS), anyString(), anyString()))
                 .thenReturn(interpretation);
         when(readingRepository.save(any(Reading.class))).thenAnswer(inv -> {
             Reading r = inv.getArgument(0);

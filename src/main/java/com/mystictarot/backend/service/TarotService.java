@@ -7,9 +7,11 @@ import com.mystictarot.backend.dto.request.FollowUpRequestDTO;
 import com.mystictarot.backend.dto.request.InterpretRequestDTO;
 import com.mystictarot.backend.dto.response.FollowUpResponseDTO;
 import com.mystictarot.backend.dto.response.InterpretResponseDTO;
+import com.mystictarot.backend.dto.response.TarotCardResponseDTO;
 import com.mystictarot.backend.entity.ChatMessage;
 import com.mystictarot.backend.entity.Reading;
 import com.mystictarot.backend.entity.TarotCard;
+import com.mystictarot.backend.entity.TarotCardTranslation;
 import com.mystictarot.backend.entity.User;
 import com.mystictarot.backend.entity.enums.ChatRole;
 import com.mystictarot.backend.entity.enums.PlanType;
@@ -22,7 +24,9 @@ import com.mystictarot.backend.exception.ValidationException;
 import com.mystictarot.backend.repository.ChatMessageRepository;
 import com.mystictarot.backend.repository.ReadingRepository;
 import com.mystictarot.backend.repository.TarotCardRepository;
+import com.mystictarot.backend.repository.TarotCardTranslationRepository;
 import com.mystictarot.backend.repository.UserRepository;
+import com.mystictarot.backend.util.LocaleUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,7 +61,9 @@ public class TarotService {
     private final ReadingRepository readingRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final TarotCardRepository tarotCardRepository;
+    private final TarotCardTranslationRepository tarotCardTranslationRepository;
     private final GeminiService geminiService;
+    private final LocaleUtil localeUtil;
     private final ObjectMapper objectMapper;
 
     @Value("${subscription.plan.limits.free:3}")
@@ -75,10 +83,11 @@ public class TarotService {
         validateInterpretRequest(request);
         validateReadingQuota(userId, user.getPlan());
 
+        String locale = localeUtil.resolve(request.getLang());
         String cardsJson = serializeCardsToJson(request.getCards());
-        String cardsDescription = buildCardsDescriptionForPrompt(request.getCards());
+        String cardsDescription = buildCardsDescriptionForPrompt(request.getCards(), locale);
         String interpretation = geminiService.generateInterpretation(
-                request.getQuestion(), request.getSpreadType(), cardsDescription);
+                request.getQuestion(), request.getSpreadType(), cardsDescription, locale);
 
         Reading reading = Reading.builder()
                 .user(user)
@@ -139,6 +148,46 @@ public class TarotService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public List<TarotCardResponseDTO> getDeck(String lang) {
+        String locale = localeUtil.resolve(lang);
+        List<TarotCardTranslation> primary = tarotCardTranslationRepository.findAllByLocaleOrderByTarotCard_CardNumberAsc(locale);
+        String defaultLocale = localeUtil.getDefaultLocale();
+        List<TarotCardTranslation> fallback = locale.equals(defaultLocale)
+                ? List.of()
+                : tarotCardTranslationRepository.findAllByLocaleOrderByTarotCard_CardNumberAsc(defaultLocale);
+        fallback.stream()
+                .collect(Collectors.toMap(t -> t.getTarotCard().getId(), t -> t));
+        List<TarotCardResponseDTO> result = new ArrayList<>();
+        for (TarotCardTranslation t : primary) {
+            TarotCard card = t.getTarotCard();
+            result.add(TarotCardResponseDTO.builder()
+                    .id(card.getId())
+                    .cardNumber(card.getCardNumber())
+                    .suit(card.getSuit())
+                    .name(t.getName())
+                    .description(t.getDescription())
+                    .imageUrl(card.getImageUrl())
+                    .build());
+        }
+        for (TarotCardTranslation t : fallback) {
+            int cardId = t.getTarotCard().getId();
+            if (primary.stream().noneMatch(p -> p.getTarotCard().getId() == cardId)) {
+                TarotCard card = t.getTarotCard();
+                result.add(TarotCardResponseDTO.builder()
+                        .id(card.getId())
+                        .cardNumber(card.getCardNumber())
+                        .suit(card.getSuit())
+                        .name(t.getName())
+                        .description(t.getDescription())
+                        .imageUrl(card.getImageUrl())
+                        .build());
+            }
+        }
+        result.sort(Comparator.comparing(TarotCardResponseDTO::getId));
+        return result;
+    }
+
     private void validateInterpretRequest(InterpretRequestDTO request) {
         Integer expected = EXPECTED_CARD_COUNT.get(request.getSpreadType());
         if (expected == null) {
@@ -197,18 +246,31 @@ public class TarotService {
         }
     }
 
-    private String buildCardsDescriptionForPrompt(List<CardDTO> cards) {
-        List<TarotCard> tarotCards = tarotCardRepository.findAllById(cards.stream().map(CardDTO::getId).toList());
-        Map<Integer, TarotCard> byId = tarotCards.stream().collect(Collectors.toMap(TarotCard::getId, c -> c));
+    private String buildCardsDescriptionForPrompt(List<CardDTO> cards, String locale) {
+        List<Integer> cardIds = cards.stream().map(CardDTO::getId).toList();
+        List<TarotCardTranslation> translations = tarotCardTranslationRepository.findByTarotCard_IdInAndLocale(cardIds, locale);
+        String defaultLocale = localeUtil.getDefaultLocale();
+        if (translations.size() < cardIds.size() && !locale.equals(defaultLocale)) {
+            Set<Integer> haveIds = translations.stream().map(t -> t.getTarotCard().getId()).collect(Collectors.toSet());
+            List<Integer> missing = cardIds.stream().filter(id -> !haveIds.contains(id)).toList();
+            List<TarotCardTranslation> fallback = tarotCardTranslationRepository.findByTarotCard_IdInAndLocale(missing, defaultLocale);
+            translations = new ArrayList<>(translations);
+            for (TarotCardTranslation t : fallback) {
+                if (!haveIds.contains(t.getTarotCard().getId())) {
+                    translations.add(t);
+                }
+            }
+        }
+        Map<Integer, TarotCardTranslation> byCardId = translations.stream().collect(Collectors.toMap(t -> t.getTarotCard().getId(), t -> t));
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < cards.size(); i++) {
             CardDTO dto = cards.get(i);
-            TarotCard card = byId.get(dto.getId());
-            if (card != null) {
-                sb.append(i + 1).append(". ").append(card.getName())
+            TarotCardTranslation trans = byCardId.get(dto.getId());
+            if (trans != null) {
+                sb.append(i + 1).append(". ").append(trans.getName())
                         .append(" (").append(dto.getOrientation().name()).append(")");
-                if (card.getDescription() != null && !card.getDescription().isBlank()) {
-                    sb.append(": ").append(card.getDescription());
+                if (trans.getDescription() != null && !trans.getDescription().isBlank()) {
+                    sb.append(": ").append(trans.getDescription());
                 }
                 sb.append("\n");
             }

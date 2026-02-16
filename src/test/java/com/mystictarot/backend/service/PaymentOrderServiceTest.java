@@ -6,7 +6,6 @@ import com.mystictarot.backend.entity.Transaction;
 import com.mystictarot.backend.entity.User;
 import com.mystictarot.backend.entity.enums.PaymentProvider;
 import com.mystictarot.backend.entity.enums.PlanType;
-import com.mystictarot.backend.entity.enums.TransactionStatus;
 import com.mystictarot.backend.exception.InvalidPaymentException;
 import com.mystictarot.backend.exception.ResourceNotFoundException;
 import com.mystictarot.backend.repository.TransactionRepository;

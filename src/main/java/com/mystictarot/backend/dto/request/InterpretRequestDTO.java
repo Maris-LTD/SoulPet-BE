@@ -33,4 +33,7 @@ public class InterpretRequestDTO {
     @NotNull(message = "Cards are required")
     @Valid
     private List<CardDTO> cards;
+
+    @Schema(description = "Language code for localized card names and AI response (e.g. vi, en). Default from server config.")
+    private String lang;
 }

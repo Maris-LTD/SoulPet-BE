@@ -4,6 +4,7 @@ import com.mystictarot.backend.dto.request.FollowUpRequestDTO;
 import com.mystictarot.backend.dto.request.InterpretRequestDTO;
 import com.mystictarot.backend.dto.response.FollowUpResponseDTO;
 import com.mystictarot.backend.dto.response.InterpretResponseDTO;
+import com.mystictarot.backend.dto.response.TarotCardResponseDTO;
 import com.mystictarot.backend.service.TarotService;
 import com.mystictarot.backend.util.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,11 +18,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -32,6 +36,17 @@ import java.util.UUID;
 public class TarotController {
 
     private final TarotService tarotService;
+
+    @GetMapping("/cards")
+    @Operation(summary = "Get tarot deck", description = "Returns all 78 tarot cards with localized name and description. Public, no auth. Use query param lang (e.g. vi, en); default from server config.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "List of cards with localized content")
+    })
+    public ResponseEntity<List<TarotCardResponseDTO>> getCards(
+            @RequestParam(required = false) String lang) {
+        List<TarotCardResponseDTO> cards = tarotService.getDeck(lang);
+        return ResponseEntity.ok(cards);
+    }
 
     @PostMapping("/interpret")
     @Operation(summary = "Interpret tarot reading", description = "Submit selected cards and question to get AI-powered interpretation. Consumes weekly reading quota.")

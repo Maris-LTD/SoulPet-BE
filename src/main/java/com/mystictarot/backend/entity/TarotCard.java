@@ -12,19 +12,14 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 
-/**
- * Tarot card entity representing master data for 78 tarot cards
- * [Phỏng đoán] Sử dụng Entity thay vì Enum để linh hoạt hơn trong việc lưu description và image_url
- */
 @Entity
-@Table(name = "tarot_cards", 
-    indexes = {
-        @Index(name = "idx_tarot_cards_name", columnList = "name", unique = true),
-        @Index(name = "idx_tarot_cards_suit", columnList = "suit")
-    },
-    uniqueConstraints = {
-        @UniqueConstraint(name = "uk_tarot_cards_suit_number", columnNames = {"suit", "card_number"})
-    }
+@Table(name = "tarot_cards",
+        indexes = {
+                @Index(name = "idx_tarot_cards_suit", columnList = "suit")
+        },
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_tarot_cards_suit_number", columnNames = {"suit", "card_number"})
+        }
 )
 @Data
 @NoArgsConstructor
@@ -36,14 +31,6 @@ public class TarotCard {
     @Column(name = "id", nullable = false)
     @NotNull(message = "Card ID is required")
     private Integer id;
-
-    @Column(name = "name", nullable = false, unique = true, length = 100)
-    @NotNull(message = "Card name is required")
-    @Size(max = 100, message = "Card name must not exceed 100 characters")
-    private String name;
-
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
 
     @Column(name = "image_url", length = 500)
     @Size(max = 500, message = "Image URL must not exceed 500 characters")
