@@ -81,7 +81,7 @@ public class TarotService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
 
         validateInterpretRequest(request);
-        validateReadingQuota(userId, user.getPlan());
+        validateReadingQuota(userId, user);
 
         String locale = localeUtil.resolve(request.getLang());
         String cardsJson = serializeCardsToJson(request.getCards());
@@ -98,6 +98,7 @@ public class TarotService {
                 .status(ReadingStatus.ACTIVE)
                 .build();
         reading = readingRepository.save(reading);
+        deductExtraCreditIfUsedForInterpret(userId, user);
         log.info("Reading created: readingId={}, userId={}", reading.getId(), userId);
 
         return InterpretResponseDTO.builder()
@@ -205,7 +206,8 @@ public class TarotService {
         }
     }
 
-    private void validateReadingQuota(UUID userId, PlanType plan) {
+    private void validateReadingQuota(UUID userId, User user) {
+        PlanType plan = user.getPlan();
         Integer limit = getWeeklyReadingsLimit(plan);
         if (limit != null && limit < 0) {
             return;
@@ -213,8 +215,25 @@ public class TarotService {
         LocalDateTime weekStart = getStartOfCurrentWeek();
         long used = readingRepository.countWeeklyReadingsByUserId(userId, ReadingStatus.ACTIVE, weekStart);
         if (limit != null && used >= limit) {
+            Integer extra = user.getExtraCredits();
+            if (extra != null && extra >= 1) {
+                return;
+            }
             throw new ReadingLimitExceededException(
                     "Weekly reading limit reached (" + used + "/" + limit + "). Upgrade your plan or wait until next week.");
+        }
+    }
+
+    private void deductExtraCreditIfUsedForInterpret(UUID userId, User user) {
+        Integer limit = getWeeklyReadingsLimit(user.getPlan());
+        if (limit == null || limit < 0) {
+            return;
+        }
+        LocalDateTime weekStart = getStartOfCurrentWeek();
+        long used = readingRepository.countWeeklyReadingsByUserId(userId, ReadingStatus.ACTIVE, weekStart);
+        if (used >= limit && user.getExtraCredits() != null && user.getExtraCredits() >= 1) {
+            user.setExtraCredits(user.getExtraCredits() - 1);
+            userRepository.save(user);
         }
     }
 

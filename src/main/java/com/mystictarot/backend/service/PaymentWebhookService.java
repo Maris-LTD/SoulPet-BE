@@ -15,6 +15,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
@@ -30,15 +33,21 @@ public class PaymentWebhookService {
     private static final int RETAIL_5_CREDITS = 5;
     private static final int MONTHLY_DAYS = 30;
     private static final int UNLIMITED_YEARS = 100;
+    private static final int STRIPE_SIGNATURE_TOLERANCE_SECONDS = 300;
+    private static final String STRIPE_EVENT_CHECKOUT_SESSION_COMPLETED = "checkout.session.completed";
 
     private final TransactionRepository transactionRepository;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
     @Value("${payment.momo.secret-key}")
     private String momoSecretKey;
 
     @Value("${payment.zalopay.key2}")
     private String zaloPayKey2;
+
+    @Value("${payment.stripe.webhook-secret:}")
+    private String stripeWebhookSecret;
 
     @Transactional
     public void handleMomoCallback(MomoWebhookPayloadDTO payload) {
@@ -108,6 +117,79 @@ public class PaymentWebhookService {
     public boolean verifyZaloPayMac(ZaloPayWebhookPayloadDTO payload, String dataStr) {
         String mac = signHmacSha256(dataStr, zaloPayKey2);
         return mac != null && mac.equalsIgnoreCase(payload.getMac());
+    }
+
+    public boolean verifyStripeSignature(String payload, String stripeSignature) {
+        if (stripeWebhookSecret == null || stripeWebhookSecret.isBlank()) {
+            return false;
+        }
+        if (payload == null || stripeSignature == null || stripeSignature.isBlank()) {
+            return false;
+        }
+        String timestamp = null;
+        String v1 = null;
+        for (String part : stripeSignature.split(",")) {
+            String[] kv = part.trim().split("=", 2);
+            if (kv.length == 2) {
+                if ("t".equals(kv[0].trim())) {
+                    timestamp = kv[1].trim();
+                } else if ("v1".equals(kv[0].trim())) {
+                    v1 = kv[1].trim();
+                }
+            }
+        }
+        if (timestamp == null || v1 == null) {
+            return false;
+        }
+        long t;
+        try {
+            t = Long.parseLong(timestamp);
+        } catch (NumberFormatException e) {
+            return false;
+        }
+        long now = System.currentTimeMillis() / 1000;
+        if (Math.abs(now - t) > STRIPE_SIGNATURE_TOLERANCE_SECONDS) {
+            return false;
+        }
+        String signedPayload = timestamp + "." + payload;
+        String expected = signHmacSha256(signedPayload, stripeWebhookSecret);
+        return expected != null && expected.equalsIgnoreCase(v1);
+    }
+
+    @Transactional
+    public void handleStripeWebhook(String payload) {
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(payload);
+        } catch (Exception e) {
+            throw new InvalidPaymentException("Invalid Stripe payload: " + e.getMessage());
+        }
+        if (root == null) {
+            throw new InvalidPaymentException("Invalid Stripe payload: empty");
+        }
+        String type = root.has("type") ? root.path("type").asText() : "";
+        if (!STRIPE_EVENT_CHECKOUT_SESSION_COMPLETED.equals(type)) {
+            return;
+        }
+        JsonNode data = root.path("data").path("object");
+        String clientReferenceId = data.has("client_reference_id") ? data.path("client_reference_id").asText() : "";
+        if (clientReferenceId.isBlank()) {
+            throw new InvalidPaymentException("Stripe event missing client_reference_id");
+        }
+        UUID transactionId;
+        try {
+            transactionId = UUID.fromString(clientReferenceId);
+        } catch (IllegalArgumentException e) {
+            throw new InvalidPaymentException("Invalid client_reference_id: " + clientReferenceId);
+        }
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new InvalidPaymentException("Transaction not found: " + clientReferenceId));
+        if (transaction.getStatus() == TransactionStatus.SUCCESS) {
+            return;
+        }
+        transaction.setStatus(TransactionStatus.SUCCESS);
+        transactionRepository.save(transaction);
+        applySubscription(transaction);
     }
 
     private void applySubscription(Transaction transaction) {

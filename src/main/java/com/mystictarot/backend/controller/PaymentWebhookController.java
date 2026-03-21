@@ -63,6 +63,10 @@ public class PaymentWebhookController {
             @ApiResponse(responseCode = "400", description = "Invalid signature")
     })
     public ResponseEntity<Void> stripeWebhook(@RequestBody String payload, @RequestHeader("Stripe-Signature") String stripeSignature) {
+        if (!paymentWebhookService.verifyStripeSignature(payload, stripeSignature)) {
+            return ResponseEntity.badRequest().build();
+        }
+        paymentWebhookService.handleStripeWebhook(payload);
         return ResponseEntity.noContent().build();
     }
 }

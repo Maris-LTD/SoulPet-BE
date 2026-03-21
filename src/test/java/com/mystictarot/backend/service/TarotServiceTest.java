@@ -170,6 +170,7 @@ class TarotServiceTest {
                         && r.getStatus() == ReadingStatus.ACTIVE
                         && r.getInterpretationText().equals(interpretation)));
         verify(geminiService).generateInterpretation(eq("What should I focus on?"), eq(SpreadType.THREE_CARDS), anyString(), eq("en"));
+        verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
@@ -230,8 +231,9 @@ class TarotServiceTest {
     }
 
     @Test
-    @DisplayName("Should throw ReadingLimitExceededException when weekly limit reached")
+    @DisplayName("Should throw ReadingLimitExceededException when weekly limit reached and no extra credits")
     void shouldThrowReadingLimitExceededException_WhenWeeklyLimitReached() {
+        testUser.setExtraCredits(0);
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
         when(readingRepository.countWeeklyReadingsByUserId(eq(userId), eq(ReadingStatus.ACTIVE), any(LocalDateTime.class)))
                 .thenReturn(3L);
@@ -248,6 +250,37 @@ class TarotServiceTest {
                 .hasMessageContaining("limit reached");
 
         verify(geminiService, never()).generateInterpretation(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Should allow interpret and deduct extra credit when weekly limit reached but has extra credits")
+    void shouldAllowInterpret_WhenWeeklyLimitReachedButHasExtraCredits() {
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(readingRepository.countWeeklyReadingsByUserId(eq(userId), eq(ReadingStatus.ACTIVE), any(LocalDateTime.class)))
+                .thenReturn(3L);
+        doReturn(tarotCards).when(tarotCardRepository).findAllById(anyIterable());
+        when(geminiService.generateInterpretation(any(), eq(SpreadType.THREE_CARDS), anyString(), anyString()))
+                .thenReturn("Interpretation using extra credit.");
+        when(readingRepository.save(any(Reading.class))).thenAnswer(inv -> {
+            Reading r = inv.getArgument(0);
+            r.setId(UUID.randomUUID());
+            return r;
+        });
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        InterpretRequestDTO request = InterpretRequestDTO.builder()
+                .question("Q")
+                .spreadType(SpreadType.THREE_CARDS)
+                .cards(threeCards)
+                .build();
+
+        InterpretResponseDTO response = tarotService.interpretReading(userId, request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getInterpretation()).isEqualTo("Interpretation using extra credit.");
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getExtraCredits()).isEqualTo(1);
     }
 
     @Test
@@ -276,6 +309,189 @@ class TarotServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.getInterpretation()).isEqualTo(interpretation);
         verify(readingRepository, never()).countWeeklyReadingsByUserId(any(), any(), any());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Should throw ReadingLimitExceededException when weekly limit reached and extraCredits is null")
+    void shouldThrowReadingLimitExceededException_WhenWeeklyLimitReachedAndExtraCreditsNull() {
+        testUser.setExtraCredits(null);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(readingRepository.countWeeklyReadingsByUserId(eq(userId), eq(ReadingStatus.ACTIVE), any(LocalDateTime.class)))
+                .thenReturn(3L);
+        doReturn(tarotCards).when(tarotCardRepository).findAllById(anyIterable());
+
+        InterpretRequestDTO request = InterpretRequestDTO.builder()
+                .question("Q")
+                .spreadType(SpreadType.THREE_CARDS)
+                .cards(threeCards)
+                .build();
+
+        assertThatThrownBy(() -> tarotService.interpretReading(userId, request))
+                .isInstanceOf(ReadingLimitExceededException.class)
+                .hasMessageContaining("limit reached");
+
+        verify(geminiService, never()).generateInterpretation(any(), any(), any(), any());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    @DisplayName("Should interpret when weekly limit reached and exactly one extra credit, then deduct to zero")
+    void shouldInterpret_WhenWeeklyLimitReachedAndOneExtraCredit_DeductsToZero() {
+        testUser.setExtraCredits(1);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(readingRepository.countWeeklyReadingsByUserId(eq(userId), eq(ReadingStatus.ACTIVE), any(LocalDateTime.class)))
+                .thenReturn(3L);
+        doReturn(tarotCards).when(tarotCardRepository).findAllById(anyIterable());
+        when(geminiService.generateInterpretation(any(), eq(SpreadType.THREE_CARDS), anyString(), anyString()))
+                .thenReturn("One credit used.");
+        when(readingRepository.save(any(Reading.class))).thenAnswer(inv -> {
+            Reading r = inv.getArgument(0);
+            r.setId(UUID.randomUUID());
+            return r;
+        });
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        InterpretRequestDTO request = InterpretRequestDTO.builder()
+                .question("Q")
+                .spreadType(SpreadType.THREE_CARDS)
+                .cards(threeCards)
+                .build();
+
+        InterpretResponseDTO response = tarotService.interpretReading(userId, request);
+
+        assertThat(response).isNotNull();
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getExtraCredits()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("Should allow interpret for MONTHLY plan when weekly at limit but has extra credits")
+    void shouldAllowInterpret_MonthlyPlanWeeklyAtLimitWithExtraCredits() {
+        testUser.setPlan(PlanType.MONTHLY);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(readingRepository.countWeeklyReadingsByUserId(eq(userId), eq(ReadingStatus.ACTIVE), any(LocalDateTime.class)))
+                .thenReturn(20L);
+        doReturn(tarotCards).when(tarotCardRepository).findAllById(anyIterable());
+        when(geminiService.generateInterpretation(any(), eq(SpreadType.THREE_CARDS), anyString(), anyString()))
+                .thenReturn("Monthly with extra.");
+        when(readingRepository.save(any(Reading.class))).thenAnswer(inv -> {
+            Reading r = inv.getArgument(0);
+            r.setId(UUID.randomUUID());
+            return r;
+        });
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        InterpretRequestDTO request = InterpretRequestDTO.builder()
+                .question("Q")
+                .spreadType(SpreadType.THREE_CARDS)
+                .cards(threeCards)
+                .build();
+
+        InterpretResponseDTO response = tarotService.interpretReading(userId, request);
+
+        assertThat(response).isNotNull();
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getExtraCredits()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Should throw ReadingLimitExceededException for RETAIL_5 when weekly at limit and no extra credits")
+    void shouldThrowReadingLimitExceededException_Retail5WeeklyAtLimitNoExtra() {
+        testUser.setPlan(PlanType.RETAIL_5);
+        testUser.setExtraCredits(0);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(readingRepository.countWeeklyReadingsByUserId(eq(userId), eq(ReadingStatus.ACTIVE), any(LocalDateTime.class)))
+                .thenReturn(5L);
+        doReturn(tarotCards).when(tarotCardRepository).findAllById(anyIterable());
+
+        InterpretRequestDTO request = InterpretRequestDTO.builder()
+                .question("Q")
+                .spreadType(SpreadType.THREE_CARDS)
+                .cards(threeCards)
+                .build();
+
+        assertThatThrownBy(() -> tarotService.interpretReading(userId, request))
+                .isInstanceOf(ReadingLimitExceededException.class)
+                .hasMessageContaining("limit reached");
+
+        verify(geminiService, never()).generateInterpretation(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("Should allow interpret for RETAIL_5 when weekly at limit but has extra credits and deduct one")
+    void shouldAllowInterpret_Retail5WeeklyAtLimitWithExtraCredits() {
+        testUser.setPlan(PlanType.RETAIL_5);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(readingRepository.countWeeklyReadingsByUserId(eq(userId), eq(ReadingStatus.ACTIVE), any(LocalDateTime.class)))
+                .thenReturn(5L);
+        doReturn(tarotCards).when(tarotCardRepository).findAllById(anyIterable());
+        when(geminiService.generateInterpretation(any(), eq(SpreadType.THREE_CARDS), anyString(), anyString()))
+                .thenReturn("Retail5 extra.");
+        when(readingRepository.save(any(Reading.class))).thenAnswer(inv -> {
+            Reading r = inv.getArgument(0);
+            r.setId(UUID.randomUUID());
+            return r;
+        });
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        InterpretRequestDTO request = InterpretRequestDTO.builder()
+                .question("Q")
+                .spreadType(SpreadType.THREE_CARDS)
+                .cards(threeCards)
+                .build();
+
+        InterpretResponseDTO response = tarotService.interpretReading(userId, request);
+
+        assertThat(response).isNotNull();
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getExtraCredits()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Should follow up with exactly one extra credit and deduct to zero")
+    void shouldFollowUp_WithOneExtraCredit_DeductsToZero() {
+        testUser.setExtraCredits(1);
+        FollowUpRequestDTO request = FollowUpRequestDTO.builder()
+                .readingId(readingId)
+                .message("One more?")
+                .build();
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(readingRepository.findByIdAndUserId(readingId, userId)).thenReturn(Optional.of(testReading));
+        when(chatMessageRepository.findByReadingIdOrderByCreatedAtAsc(readingId)).thenReturn(List.of());
+        when(geminiService.generateFollowUpResponse(anyString(), eq("One more?")))
+                .thenReturn("Answer.");
+        when(chatMessageRepository.save(any(ChatMessage.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        FollowUpResponseDTO response = tarotService.followUp(userId, request);
+
+        assertThat(response).isNotNull();
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getExtraCredits()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("Should throw InsufficientCreditsException when extra credits is negative for follow-up")
+    void shouldThrowInsufficientCreditsException_WhenExtraCreditsNegativeForFollowUp() {
+        testUser.setExtraCredits(-1);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+
+        FollowUpRequestDTO request = FollowUpRequestDTO.builder()
+                .readingId(readingId)
+                .message("Elaborate?")
+                .build();
+
+        assertThatThrownBy(() -> tarotService.followUp(userId, request))
+                .isInstanceOf(InsufficientCreditsException.class)
+                .hasMessageContaining("Insufficient credits");
+
+        verify(readingRepository, never()).findByIdAndUserId(any(), any());
+        verify(geminiService, never()).generateFollowUpResponse(any(), any());
     }
 
     @Test
